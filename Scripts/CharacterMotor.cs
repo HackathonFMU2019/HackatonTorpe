@@ -1,9 +1,15 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
+using TMPro;
 
 public class CharacterMotor : MonoBehaviour
 {
     //Movement
+    [SerializeField] TimerAndScore timerAndScore;
+    [SerializeField] Image hudHoldingTrash;
+    [SerializeField] Color[] trashColors;
+    [SerializeField] TextMeshProUGUI GUITrashCounter;
+    [SerializeField] TrashSpawn trashSpawn;
     private Rigidbody rb;
     private CharacterController cc;
     private Vector3 moveDirection;
@@ -12,22 +18,19 @@ public class CharacterMotor : MonoBehaviour
     public bool isBoosted;
     public float walkSpeed = 5f;
     public float gravity = 6;
-    [SerializeField] private bool isFirstPlayer;
+    public bool isFirstPlayer;
     [SerializeField] private Transform otherPlayer;
     [SerializeField] private float playerDistanceLimit = 30;
     [SerializeField] private GameObject trashBag;
-    [SerializeField] private int maxTrashCount;
     public int holdingTrashID;
     public int holdingTrashCount;
+    [SerializeField]AudioSource throwAudio, grabAudio, wrongCanAudio;
 
     //Animation
     private Animator anim;
 
     //Rotation
     [SerializeField] private GameObject direction;
-
-    //Reference for instantiating trash
-    [SerializeField] private Transform grabPlace;
 
     private void Start()
     {
@@ -57,43 +60,57 @@ public class CharacterMotor : MonoBehaviour
     //para ele não poder pegar outro tipo
     //ao pegar um lixo um saco de lixo aparece (ainda não modelei e coloquei esse saco no jogo) e ao pegar mais lixo o saco cresce
 
-    void Grab(TrashBehaviour trash)
+    public void Grab(TrashBehaviour trash)
     {
-        if (holdingTrashCount >= maxTrashCount)
-        {
-            //mostrar ao jogador uma mensagem na hud mostrando que ele atingiu o limite de lixo
-        }
-        else if (trash.trashID == holdingTrashID)
+        if (trash.trashID == holdingTrashID || holdingTrashID == 0)
         {
             anim.SetTrigger("grab");
             anim.SetBool("hold", true);
-            Destroy(trash);
+            Destroy(trash.gameObject);
             holdingTrashCount++;
             trashBag.SetActive(true);
-            trashBag.transform.localScale = Vector3.one * holdingTrashCount;
+            trashBag.transform.localScale = Vector3.one * holdingTrashCount * 0.5f;
+            holdingTrashID = trash.trashID;
+            hudHoldingTrash.color = trashColors[trash.trashID];
+            GUITrashCounter.text = "" + holdingTrashCount;
+            throwAudio.Play();
         }
         else
         {
-            //mostrar ao jogador uma mensagem na hud mostrando que o lixo é diferente do que ele está segurando
+            wrongCanAudio.Play();
         }
     }
 
     //o DeliverInTrashCan é para ser chamado na hora de jogar o lixo no lixo.
     //o jogador só pode jogar o lixo se o ID for o mesmo da lata de lixo, que é o ID passado para o metodo
 
-    void ThrowTrashInTrashCan(int trashCanID)
+    public void ThrowTrashInTrashCan(int trashCanID)
     {
         if(trashCanID == holdingTrashID)
         {
             holdingTrashID = 0;
-            holdingTrashCount = 0;
             trashBag.transform.localScale = Vector3.one * 0.5f;
             trashBag.SetActive(false);
             anim.SetBool("hold", false);
+            if(holdingTrashCount > 1)
+            {
+                timerAndScore.AddScore((holdingTrashCount * 2) + (holdingTrashCount * 10));
+                timerAndScore.AddTime((holdingTrashCount * 2) + (holdingTrashCount * 7));
+            }
+            else
+            {
+                timerAndScore.AddScore(10);
+                timerAndScore.AddTime(7);
+            }
+            holdingTrashCount = 0;
+            hudHoldingTrash.color = trashColors[0];
+            GUITrashCounter.text = "";
+            trashSpawn.SpawnTrash();
+            grabAudio.Play();
         }
         else
         {
-            //mostrar ao jogador uma mensagem na hud mostrando que ele não pode jogar lixo no lugar errado
+            wrongCanAudio.Play();
         }
     }
 
@@ -154,7 +171,6 @@ public class CharacterMotor : MonoBehaviour
                 direction.transform.forward = facingRotation;
             }
         }
-
     }
 }
 
